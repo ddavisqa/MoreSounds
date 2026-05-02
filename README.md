@@ -1,37 +1,52 @@
 ![SoundScrape!](http://i.imgur.com/nHAt2ow.png)
 
-SoundScrape [![Build Status](https://travis-ci.org/Miserlou/SoundScrape.svg)](https://travis-ci.org/Miserlou/SoundScrape) [![Python 3](https://img.shields.io/badge/Python-3-brightgreen.svg)](https://pypi.python.org/pypi/soundscrape/) [![PyPI](https://img.shields.io/pypi/v/soundscrape.svg)](https://pypi.python.org/pypi/SoundScrape)
+SoundScrape
 ==============
 
-**SoundScrape** makes it super easy to download artists from SoundCloud (and Bandcamp and MixCloud) - even those which don't have download links! It automatically creates ID3 tags as well (including album art), which is handy.
+**SoundScrape** makes it easy to download artists from SoundCloud, Bandcamp, and Mixcloud—even tracks that don't have public download links. It automatically creates ID3 tags as well (including album art), which is handy.
 
-Usage
----------
+This version has been modernized to run on Python 3.12+ and uses `yt-dlp` for robust Mixcloud support.
 
-First, install it:
+## Setup & Installation
 
+This project is managed with `uv`.
+
+First, install `uv`:
 ```bash
-pip install soundscrape
+pip install uv
 ```
 
-Note that if you are having problems, please first try updating to the latest version:
-
+Next, clone the repository and set up the virtual environment:
 ```bash
-pip install soundscrape --upgrade
+git clone https://github.com/Miserlou/SoundScrape.git
+cd SoundScrape
+uv sync
 ```
 
-Then, just call soundscrape and the name of the artist you want to scrape:
+### SoundCloud API Key
+
+To download from SoundCloud, you must provide your own API key.
+
+1.  Create a file named `.env` in the root of the project.
+2.  Add your SoundCloud OAuth Token to the file like this:
+
+    ```
+    SOUNDCLOUD_CLIENT_ID="YOUR_TOKEN_HERE"
+    ```
+
+## Usage
+
+To run `soundscrape`, use `uv run`:
 
 ```bash
-soundscrape rabbit-i-am
+uv run soundscrape rabbit-i-am
 ```
-
 And you're done! Hooray! Files are stored as mp3s in the format **Artist name - Track title.mp3**.
 
-You can also use the *-n* argument to only download a certain number of songs.
+You can also use the `-n` argument to only download a certain number of songs.
 
 ```bash
-soundscrape rabbit-i-am -n 3
+uv run soundscrape rabbit-i-am -n 3
 ```
 
 Sets
@@ -137,14 +152,18 @@ Note that the full URL must be included.
 Mixcloud
 --------
 
-SoundScrape can also grab mixes from Mixcloud. This feature is extremely expermental and is in no way guaranteed to work!
+SoundScrape can now robustly download sets and user profiles from Mixcloud, powered by `yt-dlp`.
 
-Finds the original mp3 of a mix and grabs that (with tags and album art) if it can, or else just gets the raw m4a stream.
+Because Mixcloud now uses encrypted streaming, the original experimental downloader no longer works. The new implementation is significantly more reliable and supports full user profiles, not just individual tracks.
 
-Mixcloud currently only takes an invidiual mix. Capacity for a whole artist's profile due shortly.
-
+To download a Mixcloud set:
 ```bash
-soundscrape https://www.mixcloud.com/corenewsuploads/flume-essential-mix-2015-10-03/ -of
+uv run soundscrape https://www.mixcloud.com/DjMoneyJ/x-ecutioners-built-from-scratch/
+```
+
+To download all of a user's uploads (up to the `-n` limit):
+```bash
+uv run soundscrape https://www.mixcloud.com/corenewsuploads/
 ```
 
 Audiomack
