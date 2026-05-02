@@ -8,6 +8,15 @@ import requests
 import sys
 import urllib.parse
 
+# Set up a requests session with a standard User-Agent to avoid 403 Forbidden errors
+request_session = requests.Session()
+request_session.headers.update({
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+})
+# Monkey-patch requests.get so we don't have to rewrite every call
+_requests_get = requests.get
+requests.get = lambda url, **kwargs: request_session.get(url, **kwargs)
+
 class SCResource:
     def __init__(self, data):
         self._data = data
@@ -103,11 +112,11 @@ progress = Progress()
 ####################################################################
 
 # Please be nice with this!
-CLIENT_ID = 'a3dd183a357fcff9a6943c0d65664087'
+CLIENT_ID = '1Gbi6DBGBMULQH8MuhNvI1HzL9AiX2Pa'
 CLIENT_SECRET = '7e10d33e967ad42574124977cf7fa4b7'
 MAGIC_CLIENT_ID = 'b45b1aa10f1ac2941910a7f0d10f8e28'
 
-AGGRESSIVE_CLIENT_ID = 'OmTFHKYSMLFqnu2HHucmclAptedxWXkq'
+AGGRESSIVE_CLIENT_ID = '1Gbi6DBGBMULQH8MuhNvI1HzL9AiX2Pa'
 APP_VERSION = '1481046241'
 
 ####################################################################
@@ -275,10 +284,9 @@ def process_soundcloud(vargs):
             return None
 
         message = str(e)
-        item_id = message.rsplit('/', 1)[-1].split('.json')[0].split('?client_id')[0]
-        hard_track_url = get_hard_track_url(item_id)
-
         track_data = get_soundcloud_data(artist_url)
+        hard_track_url = get_hard_track_url(track_data.get('track_id'))
+
         puts_safe(colored.green("Scraping") + colored.white(": " + track_data['title']))
 
         filenames = []
@@ -565,8 +573,20 @@ def get_soundcloud_data(url):
     request = requests.get(url)
 
     title_tag = request.text.split('<title>')[1].split('</title')[0]
-    data['title'] = title_tag.split(' by ')[0].strip()
-    data['artist'] = title_tag.split(' by ')[1].split('|')[0].strip()
+    data['title'] = html_unescape(title_tag.split(' by ')[0].strip())
+    try:
+        data['artist'] = html_unescape(title_tag.split(' by ')[1].split('|')[0].strip())
+    except IndexError:
+        data['artist'] = 'Unknown Artist'
+
+    match = re.search(r'soundcloud://sounds:(\d+)', request.text)
+    if match:
+        data['track_id'] = match.group(1)
+    else:
+        match = re.search(r'"id":(\d+)', request.text)
+        if match:
+            data['track_id'] = match.group(1)
+
     # XXX Do more..
 
     return data
@@ -594,20 +614,28 @@ def get_soundcloud_api_playlist_data(playlist_id):
 
     return parsed
 
-def get_hard_track_url(item_id):
+def get_hard_track_url(track_id):
     """
-    Hard-scrapes a track.
+    Hard-scrapes a track via v2 API.
     """
-
-    streams_url = f"https://api.soundcloud.com/i1/tracks/{item_id}/streams/?client_id={AGGRESSIVE_CLIENT_ID}&app_version={APP_VERSION}"
-    response = requests.get(streams_url)
-    json_response = response.json()
-
-    if response.status_code == 200:
-        hard_track_url = json_response['http_mp3_128_url']
-        return hard_track_url
-    else:
+    if not track_id:
         return None
+
+    url = f'https://api-v2.soundcloud.com/tracks?ids={track_id}&client_id={AGGRESSIVE_CLIENT_ID}'
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        if data:
+            track_info = data[0]
+            track_auth = track_info.get('track_authorization')
+            transcodings = track_info.get('media', {}).get('transcodings', [])
+            for t in transcodings:
+                if t.get('format', {}).get('protocol') == 'progressive':
+                    stream_url = t['url']
+                    r = requests.get(f'{stream_url}?client_id={AGGRESSIVE_CLIENT_ID}&track_authorization={track_auth}')
+                    if r.status_code == 200:
+                        return r.json().get('url')
+    return None
 
 ####################################################################
 # Bandcamp
