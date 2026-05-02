@@ -932,8 +932,11 @@ def get_mixcloud_data(url):
 
     data = {}
     request = requests.get(url)
-    preview_mp3_url = request.text.split('m-preview="')[1].split('" m-preview-light')[0]
-    song_uuid = request.text.split('m-preview="')[1].split('" m-preview-light')[0].split('previews/')[1].split('.mp3')[0]
+    try:
+        preview_mp3_url = request.text.split('m-preview="')[1].split('" m-preview-light')[0]
+        song_uuid = request.text.split('m-preview="')[1].split('" m-preview-light')[0].split('previews/')[1].split('.mp3')[0]
+    except IndexError:
+        raise ValueError("Mixcloud parsing failed: Mixcloud has updated its website and no longer exposes raw audio streams.")
 
     # Fish for the m4a..
     for server in range(1, 23):
