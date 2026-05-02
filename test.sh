@@ -1,2 +1,2 @@
 #! /bin/bash
-nosetests
+uv run pytest

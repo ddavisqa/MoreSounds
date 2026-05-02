@@ -1,15 +1,63 @@
 #! /usr/bin/env python
 import argparse
-import demjson
+import demjson3 as demjson
 import html
 import os
 import re
 import requests
-import soundcloud
 import sys
-import urllib
+import urllib.parse
 
-from clint.textui import colored, puts, progress
+class SCResource:
+    def __init__(self, data):
+        self._data = data
+        for k, v in data.items():
+            if isinstance(v, dict):
+                setattr(self, k, SCResource(v))
+            else:
+                setattr(self, k, v)
+    def __getattr__(self, name):
+        return None
+    def get(self, name, default=None):
+        return getattr(self, name, default)
+    def __getitem__(self, name):
+        return getattr(self, name)
+
+class SCResourceList(list):
+    def __init__(self, data):
+        super().__init__([SCResource(i) if isinstance(i, dict) else i for i in data])
+
+class SCClient:
+    def __init__(self, client_id):
+        self.client_id = client_id
+        
+    def get(self, path, **kwargs):
+        url = 'https://api.soundcloud.com' + path
+        params = kwargs
+        params['client_id'] = self.client_id
+        r = requests.get(url, params=params)
+        r.raise_for_status()
+        data = r.json()
+        if isinstance(data, list):
+            return SCResourceList(data)
+        elif isinstance(data, dict):
+            if 'collection' in data:
+                res = SCResource(data)
+                res.collection = SCResourceList(data['collection'])
+                return res
+            return SCResource(data)
+        return data
+
+class SCModule:
+    Client = SCClient
+    class resource:
+        ResourceList = SCResourceList
+        Resource = SCResource
+
+soundcloud = SCModule()
+
+from rich.console import Console
+from rich.progress import track as progress_track
 from datetime import datetime
 from mutagen.mp3 import MP3, EasyMP3
 from mutagen.id3 import APIC, WXXX
@@ -18,10 +66,39 @@ from subprocess import Popen, PIPE
 from os.path import dirname, exists, join
 from os import access, mkdir, W_OK
 
-if sys.version_info.minor < 4:
-    html_unescape = html.parser.HTMLParser().unescape
-else:
-    html_unescape = html.unescape
+html_unescape = html.unescape
+
+console = Console()
+
+class ColoredString:
+    def __init__(self, color, text):
+        self.color = color
+        self.text = text
+    def __str__(self):
+        return f"[{self.color}]{self.text}[/{self.color}]"
+    def __add__(self, other):
+        return str(self) + str(other)
+    def __radd__(self, other):
+        return str(other) + str(self)
+
+class Colored:
+    def red(self, text): return ColoredString("red", text)
+    def green(self, text): return ColoredString("green", text)
+    def yellow(self, text): return ColoredString("yellow", text)
+    def white(self, text): return ColoredString("white", text)
+    def blue(self, text): return ColoredString("blue", text)
+    def cyan(self, text): return ColoredString("cyan", text)
+
+colored = Colored()
+
+def puts(text):
+    console.print(str(text))
+
+class Progress:
+    def bar(self, iterable, expected_size=None):
+        return progress_track(iterable, total=expected_size, description="Downloading")
+
+progress = Progress()
 
 ####################################################################
 
@@ -88,18 +165,18 @@ def main():
     vargs = vars(args)
 
     if vargs['version']:
-        import pkg_resources
-        version = pkg_resources.require("soundscrape")[0].version
-        print(version)
+        import importlib.metadata
+        try:
+            version = importlib.metadata.version("soundscrape")
+            print(version)
+        except importlib.metadata.PackageNotFoundError:
+            print("Unknown version")
         return
 
     if not vargs['artist_url']:
         parser.error('Please supply an artist\'s username or URL!')
 
-    if sys.version_info < (3,0,0):
-        vargs['artist_url'] = urllib.quote(vargs['artist_url'][0], safe=':/')
-    else:
-        vargs['artist_url'] = urllib.parse.quote(vargs['artist_url'][0], safe=':/')
+    vargs['artist_url'] = urllib.parse.quote(vargs['artist_url'][0], safe=':/')
 
     artist_url = vargs['artist_url']
 
@@ -220,6 +297,8 @@ def process_soundcloud(vargs):
             return None
 
         filename = download_file(hard_track_url, filename)
+        if filename is None:
+            return None
         tagged = tag_file(filename,
                  artist=track_data['artist'],
                  title=track_data['title'],
@@ -403,8 +482,7 @@ def download_tracks(client, tracks, num_tracks=sys.maxsize, downloadable=False, 
                         t_track['stream_url'] = track.stream_url
                     else:
                         t_track['direct'] = True
-                        streams_url = "https://api.soundcloud.com/i1/tracks/%s/streams?client_id=%s&app_version=%s" % (
-                        str(track.id), AGGRESSIVE_CLIENT_ID, APP_VERSION)
+                        streams_url = f"https://api.soundcloud.com/i1/tracks/{track.id}/streams?client_id={AGGRESSIVE_CLIENT_ID}&app_version={APP_VERSION}"
                         response = requests.get(streams_url).json()
                         t_track['stream_url'] = response['http_mp3_128_url']
 
@@ -449,6 +527,8 @@ def download_tracks(client, tracks, num_tracks=sys.maxsize, downloadable=False, 
                         location = stream.url
 
                 filename = download_file(location, track_filename)
+                if filename is None:
+                    continue
                 tagged = tag_file(filename,
                          artist=track['user']['username'],
                          title=track['title'],
@@ -497,8 +577,7 @@ def get_soundcloud_api2_data(artist_id):
     Scrape the new API. Returns the parsed JSON response.
     """
 
-    v2_url = "https://api-v2.soundcloud.com/stream/users/%s?limit=500&client_id=%s&app_version=%s" % (
-    artist_id, AGGRESSIVE_CLIENT_ID, APP_VERSION)
+    v2_url = f"https://api-v2.soundcloud.com/stream/users/{artist_id}?limit=500&client_id={AGGRESSIVE_CLIENT_ID}&app_version={APP_VERSION}"
     response = requests.get(v2_url)
     parsed = response.json()
 
@@ -509,8 +588,7 @@ def get_soundcloud_api_playlist_data(playlist_id):
     Scrape the new API. Returns the parsed JSON response.
     """
 
-    url = "https://api.soundcloud.com/playlists/%s?representation=full&client_id=02gUJC0hH2ct1EGOcYXQIzRFU91c72Ea&app_version=1467724310" % (
-        playlist_id)
+    url = f"https://api.soundcloud.com/playlists/{playlist_id}?representation=full&client_id=02gUJC0hH2ct1EGOcYXQIzRFU91c72Ea&app_version=1467724310"
     response = requests.get(url)
     parsed = response.json()
 
@@ -521,8 +599,7 @@ def get_hard_track_url(item_id):
     Hard-scrapes a track.
     """
 
-    streams_url = "https://api.soundcloud.com/i1/tracks/%s/streams/?client_id=%s&app_version=%s" % (
-    item_id, AGGRESSIVE_CLIENT_ID, APP_VERSION)
+    streams_url = f"https://api.soundcloud.com/i1/tracks/{item_id}/streams/?client_id={AGGRESSIVE_CLIENT_ID}&app_version={APP_VERSION}"
     response = requests.get(streams_url)
     json_response = response.json()
 
@@ -621,9 +698,9 @@ def scrape_bandcamp_url(url, num_tracks=sys.maxsize, folders=False, custom_path=
             else:
                 track_number = None
             if track_number and folders:
-                track_filename = '%s - %s.mp3' % (track_number, track_name)
+                track_filename = f'{track_number} - {track_name}.mp3'
             else:
-                track_filename = '%s.mp3' % (track_name)
+                track_filename = f'{track_name}.mp3'
             track_filename = sanitize_filename(track_filename)
 
             if folders:
@@ -680,7 +757,7 @@ def extract_embedded_json_from_attribute(request, attribute, debug=False):
         The embedded JSON object as a dict, or None if extraction failed
     """
     try:
-        embed = request.text.split('{}="'.format(attribute))[1]
+        embed = request.text.split(f'{attribute}="')[1]
         embed = html_unescape(
             embed.split('"')[0]
         )
@@ -1220,6 +1297,8 @@ def download_file(url, path, session=None, params=None):
     """
     Download an individual file.
     """
+    if url is None:
+        return None
 
     if url[0:2] == '//':
         url = 'https://' + url[2:]
@@ -1331,7 +1410,7 @@ def open_files(filenames):
     stdout, stderr = process.communicate()
 
 
-def sanitize_filename(filename):
+def sanitize_filename(filename: str) -> str:
     """
     Make sure filenames are valid paths.
 
@@ -1352,13 +1431,7 @@ def sanitize_filename(filename):
     return sanitized_filename
 
 def puts_safe(text):
-    if sys.platform == "win32":
-        if sys.version_info < (3,0,0):
-            puts(text)
-        else:
-            puts(text.encode(sys.stdout.encoding, errors='replace').decode())
-    else:
-        puts(text)
+    puts(text)
 
 
 ####################################################################

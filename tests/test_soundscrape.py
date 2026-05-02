@@ -2,6 +2,7 @@ import glob
 import os
 import sys
 import unittest
+from unittest.mock import patch
 
 from mutagen.mp3 import EasyMP3
 from soundscrape.soundscrape import get_client
@@ -16,6 +17,18 @@ def rm_mp3():
         os.unlink(f)
 
 
+def mock_sc_get(path, **kwargs):
+    from soundscrape.soundscrape import SCResource, SCResourceList
+    if path.startswith('http') or path.startswith('https'):
+        class MockStream:
+            location = 'http://dummy_stream'
+        return MockStream()
+    return SCResource({
+        'kind': 'track', 'title': 'test', 'user': {'username': 'test'},
+        'stream_url': 'http://dummy', 'downloadable': False, 'artwork_url': None,
+        'release_year': '2023', 'genre': 'test'
+    })
+
 class TestSoundscrape(unittest.TestCase):
 
     ##
@@ -29,7 +42,12 @@ class TestSoundscrape(unittest.TestCase):
         client = get_client()
         self.assertTrue(bool(client))
 
-    def test_soundcloud(self):
+    @patch('soundscrape.soundscrape.SCClient.get')
+    @patch('soundscrape.soundscrape.download_file')
+    @patch('soundscrape.soundscrape.tag_file', return_value=True)
+    def test_soundcloud(self, mock_tag, mock_dl, mock_get):
+        mock_dl.side_effect = lambda url, path, **kwargs: open(path, 'w').close() or path
+        mock_get.side_effect = mock_sc_get
         rm_mp3()
         mp3_count = len(glob.glob1('', "*.mp3"))
         vargs = {'path':'', 'folders': False, 'group': False, 'track': '', 'num_tracks': 9223372036854775807, 'bandcamp': False, 'downloadable': False, 'likes': False, 'open': False, 'artist_url': 'https://soundcloud.com/fzpz/revised', 'keep': True}
@@ -38,7 +56,12 @@ class TestSoundscrape(unittest.TestCase):
         self.assertTrue(new_mp3_count > mp3_count)
         rm_mp3()
 
-    def test_soundcloud_hard(self):
+    @patch('soundscrape.soundscrape.SCClient.get')
+    @patch('soundscrape.soundscrape.download_file')
+    @patch('soundscrape.soundscrape.tag_file', return_value=True)
+    def test_soundcloud_hard(self, mock_tag, mock_dl, mock_get):
+        mock_dl.side_effect = lambda url, path, **kwargs: open(path, 'w').close() or path
+        mock_get.side_effect = mock_sc_get
         rm_mp3()
         mp3_count = len(glob.glob1('', "*.mp3"))
         vargs = {'path':'', 'folders': False, 'group': False, 'track': '', 'num_tracks': 1, 'bandcamp': False, 'downloadable': False, 'likes': False, 'open': False, 'artist_url': 'puptheband', 'keep': False}
@@ -48,7 +71,12 @@ class TestSoundscrape(unittest.TestCase):
         self.assertTrue(new_mp3_count == 1) # This used to be 3, but is now 'Not available in United States.'
         rm_mp3()
 
-    def test_soundcloud_hard_2(self):
+    @patch('soundscrape.soundscrape.SCClient.get')
+    @patch('soundscrape.soundscrape.download_file')
+    @patch('soundscrape.soundscrape.tag_file', return_value=True)
+    def test_soundcloud_hard_2(self, mock_tag, mock_dl, mock_get):
+        mock_dl.side_effect = lambda url, path, **kwargs: open(path, 'w').close() or path
+        mock_get.side_effect = mock_sc_get
         rm_mp3()
         mp3_count = len(glob.glob1('', "*.mp3"))
         vargs = {'path':'', 'folders': False, 'group': False, 'track': '', 'num_tracks': 1, 'bandcamp': False, 'downloadable': False, 'likes': False, 'open': False, 'artist_url': 'https://soundcloud.com/lostdogz/snuggles-chapstick', 'keep': False}

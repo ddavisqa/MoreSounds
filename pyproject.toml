@@ -1,0 +1,34 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "soundscrape"
+version = "0.31.0"
+description = "Scrape an artist from SoundCloud"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT License"}
+authors = [
+    {name = "Rich Jones", email = "rich@openwatch.net"}
+]
+dependencies = [
+    "requests",
+    "mutagen",
+    "rich",
+    "demjson3",
+]
+
+[project.urls]
+Homepage = "https://github.com/Miserlou/SoundScrape"
+
+[project.scripts]
+soundscrape = "soundscrape.soundscrape:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
