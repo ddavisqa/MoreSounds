@@ -5,3 +5,6 @@ env/
 *.bak
 build/
 dist/
+
+# VS Code
+.vscode/
