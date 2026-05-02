@@ -18,10 +18,12 @@ We have successfully executed the steps outlined in `MODERNIZATION_PLAN.md`. Bel
 - Modernized string formatting operations in key functions to use Python 3.12 `f-strings` instead of `%s` and `.format()`.
 - Added basic type hinting to functions like `sanitize_filename`.
 
-### Phase 3: Core Business Logic Preservation - ✅ DONE
-- Left all routing and URL processing functions (`process_soundcloud`, `process_bandcamp`, etc.) structurally intact.
+### Phase 3: Core Business Logic Preservation & Enhancements - ✅ DONE
+- Left all routing and URL processing functions structurally intact for the platforms that remain functional.
 - Retained the exact `argparse` configuration, preserving all original CLI flags (`-n`, `-g`, `-b`, `-m`, `-a`, `-c`, `-l`, `-L`, `-d`, `-t`, `-f`, `-p`, `-P`, `-o`, `-k`, `-v`).
 - Preserved all `mutagen` MP3/ID3 tagging functionality exactly as written.
+- **SoundCloud API Enhancements**: Upgraded SoundCloud API interaction by patching the default `requests` session with a valid user-agent to bypass 403 Forbidden bot-protection. Updated the `get_hard_track_url` mechanism to support the v2 API and correctly authorize and extract `media.transcodings` progressive MP3 streams. Replaced the default `CLIENT_ID` with a valid, working OAuth token.
+- **Mixcloud Overhaul**: Replaced the legacy and defunct Mixcloud scraper—which broke due to Mixcloud migrating to an encrypted SPA streaming model—with a robust `yt-dlp` integration. Added `yt-dlp` to dependencies and implemented `YoutubeDL` context wrapper to seamlessly handle pagination, downloads, and outputting to `.m4a`.
 
 ### Phase 4: Testing Framework Migration - ✅ DONE
 - Renamed `tests/test.py` to `tests/test_soundscrape.py` to comply with standard `pytest` discovery conventions.

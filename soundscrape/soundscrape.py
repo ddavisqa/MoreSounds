@@ -7,6 +7,9 @@ import re
 import requests
 import sys
 import urllib.parse
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Set up a requests session with a standard User-Agent to avoid 403 Forbidden errors
 request_session = requests.Session()
@@ -112,11 +115,11 @@ progress = Progress()
 ####################################################################
 
 # Please be nice with this!
-CLIENT_ID = '1Gbi6DBGBMULQH8MuhNvI1HzL9AiX2Pa'
+CLIENT_ID = os.getenv("SOUNDCLOUD_CLIENT_ID", '1Gbi6DBGBMULQH8MuhNvI1HzL9AiX2Pa')
 CLIENT_SECRET = '7e10d33e967ad42574124977cf7fa4b7'
 MAGIC_CLIENT_ID = 'b45b1aa10f1ac2941910a7f0d10f8e28'
 
-AGGRESSIVE_CLIENT_ID = '1Gbi6DBGBMULQH8MuhNvI1HzL9AiX2Pa'
+AGGRESSIVE_CLIENT_ID = os.getenv("SOUNDCLOUD_CLIENT_ID", '1Gbi6DBGBMULQH8MuhNvI1HzL9AiX2Pa')
 APP_VERSION = '1481046241'
 
 ####################################################################
@@ -1251,7 +1254,7 @@ def scrape_musicbed_url(url, login, password, num_tracks=sys.maxsize, folders=Fa
                 for each in each_song['genre_string'].split( '</a>' ):
                     if ( each != "" ):
                         genres += each.split( '">' )[1] + '/'
-                genres = genres[:-1] # removing last '/
+                genres = genres[:-1] # removing last '/'
 
                 tag_file(path,
                          each_song['album']['data']['artist']['data']['name'],
