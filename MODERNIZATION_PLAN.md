@@ -24,10 +24,11 @@ Modernize the `SoundScrape` project to use Python 3.12 standards, replace abando
 4. Modernize syntax: Introduce f-strings, switch `os` pathing to `pathlib.Path`, and add basic type hinting.
 5. Replace `fudge` with `unittest.mock` for any testing mock behavior.
 
-**Phase 3: Core Business Logic Preservation**
+**Phase 3: Core Business Logic Preservation & Enhancement**
 1. *Scraping Logic:* Ensure the routing logic for `process_soundcloud`, `process_bandcamp`, `process_mixcloud`, `process_audiomack`, `process_hive`, and `process_musicbed` remains intact.
 2. *CLI Arguments:* Retain all exact arguments (`-n`, `-g`, `-b`, `-m`, `-a`, `-c`, `-l`, `-L`, `-d`, `-t`, `-f`, `-p`, `-P`, `-o`, `-k`, `-v`) to avoid breaking existing users' scripts.
 3. *ID3 Tagging:* Ensure the `mutagen` code that applies ID3 tags and album art is preserved during the modernization.
+4. *Mixcloud Overhaul:* Since Mixcloud has migrated to an encrypted SPA streaming model, replace the defunct experimental Mixcloud HTML scraper with `yt-dlp` to robustly download Mixcloud songs and sets.
 
 **Phase 4: Testing Framework Migration**
 1. Modify `tests/test.py` to support `pytest`. Existing `unittest.TestCase` can remain, but test execution will be managed by `pytest`.

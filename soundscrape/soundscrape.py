@@ -855,11 +855,11 @@ def get_bandcamp_metadata(url):
 ####################################################################
 
 
+
 def process_mixcloud(vargs):
     """
     Main MixCloud path.
     """
-
     artist_url = vargs['artist_url']
 
     if 'mixcloud.com' in artist_url:
@@ -869,102 +869,57 @@ def process_mixcloud(vargs):
 
     filenames = scrape_mixcloud_url(mc_url, num_tracks=vargs['num_tracks'], folders=vargs['folders'], custom_path=vargs['path'])
 
-    if vargs['open']:
+    if vargs.get('open', False):
         open_files(filenames)
 
     return
-
 
 def scrape_mixcloud_url(mc_url, num_tracks=sys.maxsize, folders=False, custom_path=''):
     """
     Returns:
         list: filenames to open
-
     """
+    try:
+        import yt_dlp
+    except ImportError:
+        puts_safe(colored.red("Error: ") + colored.white("yt-dlp is required to download from Mixcloud. Install it with 'pip install yt-dlp'."))
+        return []
+
+    filenames = []
+    
+    ydl_opts = {
+        'format': 'm4a/bestaudio/best',
+        'quiet': False,
+        'no_warnings': True,
+        'extract_flat': False,
+    }
+
+    if folders:
+        ydl_opts['outtmpl'] = join(custom_path, '%(uploader)s', '%(uploader)s - %(title)s.%(ext)s')
+    else:
+        ydl_opts['outtmpl'] = join(custom_path, '%(uploader)s - %(title)s.%(ext)s')
+
+    if num_tracks < sys.maxsize:
+        ydl_opts['max_downloads'] = num_tracks
+
+    def hook(d):
+        if d['status'] == 'finished':
+            filenames.append(d['filename'])
+            puts_safe(colored.green("Downloaded") + colored.white(': ' + d['filename']))
+
+    ydl_opts['progress_hooks'] = [hook]
 
     try:
-        data = get_mixcloud_data(mc_url)
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([mc_url])
+    except yt_dlp.utils.MaxDownloadsReached:
+        pass
     except Exception as e:
         puts_safe(colored.red("Problem downloading ") + mc_url)
         print(e)
         return []
 
-    filenames = []
-
-    track_artist = sanitize_filename(data['artist'])
-    track_title = sanitize_filename(data['title'])
-    track_filename = track_artist + ' - ' + track_title + data['mp3_url'][-4:]
-
-    if folders:
-        track_artist_path = join(custom_path, track_artist)
-        if not exists(track_artist_path):
-            mkdir(track_artist_path)
-        track_filename = join(track_artist_path, track_filename)
-        if exists(track_filename):
-            puts_safe(colored.yellow("Skipping") + colored.white(': ' + data['title'] + " - it already exists!"))
-            return []
-    else:
-        track_filename = join(custom_path, track_filename)
-
-    puts_safe(colored.green("Downloading") + colored.white(
-        ': ' + data['artist'] + " - " + data['title'] + " (" + track_filename[-4:] + ")"))
-    download_file(data['mp3_url'], track_filename)
-    if track_filename[-4:] == '.mp3':
-        tag_file(track_filename,
-                 artist=data['artist'],
-                 title=data['title'],
-                 year=data['year'],
-                 genre="Mix",
-                 artwork_url=data['artwork_url'])
-    filenames.append(track_filename)
-
     return filenames
-
-
-def get_mixcloud_data(url):
-    """
-    Scrapes a Mixcloud page for a track's important information.
-
-    Returns:
-        dict: containing audio data
-
-    """
-
-    data = {}
-    request = requests.get(url)
-    try:
-        preview_mp3_url = request.text.split('m-preview="')[1].split('" m-preview-light')[0]
-        song_uuid = request.text.split('m-preview="')[1].split('" m-preview-light')[0].split('previews/')[1].split('.mp3')[0]
-    except IndexError:
-        raise ValueError("Mixcloud parsing failed: Mixcloud has updated its website and no longer exposes raw audio streams.")
-
-    # Fish for the m4a..
-    for server in range(1, 23):
-        # Ex: https://stream6.mixcloud.com/c/m4a/64/1/2/0/9/30fe-23aa-40da-9bf3-4bee2fba649d.m4a
-        mp3_url = "https://stream" + str(server) + ".mixcloud.com/c/m4a/64/" + song_uuid + '.m4a'
-        try:
-            if requests.head(mp3_url).status_code == 200:
-                if '?' in mp3_url:
-                    mp3_url = mp3_url.split('?')[0]
-                break
-        except Exception as e:
-            continue
-
-    full_title = request.text.split("<title>")[1].split(" | Mixcloud")[0]
-    title = full_title.split(' by ')[0].strip()
-    artist = full_title.split(' by ')[1].strip()
-
-    img_thumbnail_url = request.text.split('m-thumbnail-url="')[1].split(" ng-class")[0]
-    artwork_url = img_thumbnail_url.replace('60/', '300/').replace('60/', '300/').replace('//', 'https://').replace('"',
-                                                                                                                    '')
-
-    data['mp3_url'] = mp3_url
-    data['title'] = title
-    data['artist'] = artist
-    data['artwork_url'] = artwork_url
-    data['year'] = None
-
-    return data
 
 
 ####################################################################
