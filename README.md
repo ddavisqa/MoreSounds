@@ -23,9 +23,9 @@ cd SoundScrape
 uv sync
 ```
 
-### SoundCloud API Key
+### SoundCloud API Key (Required)
 
-To download from SoundCloud, you must provide your own API key.
+To download from SoundCloud, you **must** provide your own SoundCloud API key. This is required—there are no default fallback keys.
 
 1.  Create a file named `.env` in the root of the project.
 2.  Add your SoundCloud OAuth Token to the file like this:
@@ -33,6 +33,8 @@ To download from SoundCloud, you must provide your own API key.
     ```
     SOUNDCLOUD_CLIENT_ID="YOUR_TOKEN_HERE"
     ```
+
+**Note:** If you forget to set `SOUNDCLOUD_CLIENT_ID`, the tool will display an error message with instructions on where to add it.
 
 ## Usage
 
@@ -62,12 +64,12 @@ All of the original flags are preserved for full functionality.
 *   `-a`, `--audiomack`: Use if downloading from Audiomack rather than SoundCloud.
 *   `-c`, `--hive`: Use if downloading from Hive.co rather than SoundCloud.
 *   `-l`, `--likes`: Download all of a user's Likes on SoundCloud.
-*   `-L LOGIN`, `--login LOGIN`: Set login for MusicBed.
+*   `-L LOGIN`, `--login LOGIN`: Set login for MusicBed (required for MusicBed downloads).
 *   `-d`, `--downloadable`: Only fetch tracks with an official, high-quality download link.
 *   `-t TRACK`, `--track TRACK`: The name of a specific track by an artist to download.
 *   `-f`, `--folders`: Organize saved songs in folders by artists.
 *   `-p PATH`, `--path PATH`: Set a directory path where downloads should be saved.
-*   `-P PASSWORD`, `--password PASSWORD`: Set password for MusicBed.
+*   `-P PASSWORD`, `--password PASSWORD`: Set password for MusicBed (required for MusicBed downloads).
 *   `-o`, `--open`: Open downloaded files automatically after downloading.
 *   `-k`, `--keep`: Keep 30-second preview tracks (SoundCloud).
 *   `-v`, `--version`: Display the current version of SoundScrape.
