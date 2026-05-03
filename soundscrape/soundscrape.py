@@ -114,12 +114,9 @@ progress = Progress()
 
 ####################################################################
 
-# Please be nice with this!
-CLIENT_ID = os.getenv("SOUNDCLOUD_CLIENT_ID", '1Gbi6DBGBMULQH8MuhNvI1HzL9AiX2Pa')
-CLIENT_SECRET = '7e10d33e967ad42574124977cf7fa4b7'
-MAGIC_CLIENT_ID = 'b45b1aa10f1ac2941910a7f0d10f8e28'
-
-AGGRESSIVE_CLIENT_ID = os.getenv("SOUNDCLOUD_CLIENT_ID", '1Gbi6DBGBMULQH8MuhNvI1HzL9AiX2Pa')
+# SoundCloud API credentials from environment variables only (no hardcoded defaults)
+CLIENT_ID = os.getenv("SOUNDCLOUD_CLIENT_ID")
+AGGRESSIVE_CLIENT_ID = CLIENT_ID
 APP_VERSION = '1481046241'
 
 ####################################################################
@@ -154,8 +151,8 @@ def main():
                         help='Use if downloading from Hive.co rather than SoundCloud')
     parser.add_argument('-l', '--likes', action='store_true',
                         help='Download all of a user\'s Likes.')
-    parser.add_argument('-L', '--login', type=str, default='soundscrape123@mailinator.com',
-                        help='Set login')
+    parser.add_argument('-L', '--login', type=str, default='',
+                        help='Set login for MusicBed (required for MusicBed downloads)')
     parser.add_argument('-d', '--downloadable', action='store_true',
                         help='Only fetch tracks with a Downloadable link.')
     parser.add_argument('-t', '--track', type=str, default='',
@@ -164,8 +161,8 @@ def main():
                         help='Organize saved songs in folders by artists')
     parser.add_argument('-p', '--path', type=str, default='',
                         help='Set directory path where downloads should be saved to')
-    parser.add_argument('-P', '--password', type=str, default='soundscraperocks',
-                        help='Set password')
+    parser.add_argument('-P', '--password', type=str, default='',
+                        help='Set password for MusicBed (required for MusicBed downloads)')
     parser.add_argument('-o', '--open', action='store_true',
                         help='Open downloaded files after downloading.')
     parser.add_argument('-k', '--keep', action='store_true',
@@ -207,6 +204,8 @@ def main():
     elif 'hive.co' in artist_url or vargs['hive']:
         process_hive(vargs)
     elif 'musicbed.com' in artist_url:
+        if not vargs['login'] or not vargs['password']:
+            parser.error('MusicBed requires both -L (login) and -P (password) flags')
         process_musicbed(vargs)
     else:
         process_soundcloud(vargs)
@@ -395,6 +394,13 @@ def get_client():
     """
     Return a new SoundCloud Client object.
     """
+    if not CLIENT_ID:
+        raise ValueError(
+            "SOUNDCLOUD_CLIENT_ID environment variable is not set. "
+            "Please add it to your .env file:\n"
+            "    SOUNDCLOUD_CLIENT_ID=\"your_token_here\"\n"
+            "See README.md for instructions on obtaining a SoundCloud API token."
+        )
     client = soundcloud.Client(client_id=CLIENT_ID)
     return client
 

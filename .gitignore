@@ -3,6 +3,7 @@ env/
 *.DS_Store
 *.pyc
 *.bak
+*.tmp
 build/
 dist/
 
