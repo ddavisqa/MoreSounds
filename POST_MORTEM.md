@@ -31,6 +31,18 @@ Throughout this process, several important points were clarified:
 
 *   **Virtual Environments (`uv`)**: We clarified that `uv run` is a convenient shortcut, but a user can also activate the virtual environment directly (`source .venv/bin/activate`) to run commands without the `uv run` prefix, which is useful for running many commands in a session.
 
+## Security Hardening Phase
+
+Before final publication, we implemented additional security measures:
+
+*   **Removed Hardcoded Credentials**: All hardcoded API keys and test credentials were removed from source code. SoundCloud `CLIENT_ID` now requires explicit configuration via `.env` file with helpful error messages if missing.
+
+*   **Validation & Error Handling**: Added runtime checks to validate that required credentials are provided before attempting operations. MusicBed downloads now explicitly require both login and password flags.
+
+*   **Artifact Cleanup**: Removed temporary test files and updated `.gitignore` to prevent future artifacts from being committed.
+
+*   **Documentation Updates**: Updated README.md to clarify that no default credentials exist and users must provide their own configuration.
+
 ## Final Outcome
 
-The project was a complete success. The codebase was modernized, its functionality was preserved and even enhanced (with robust Mixcloud support), and the final result was successfully pushed to the correct GitHub repository. The project is now in a clean, maintainable, and shareable state.
+The project was a complete success. The codebase was modernized, its functionality was preserved and even enhanced (with robust Mixcloud support), hardened with security best practices, and successfully pushed to the correct GitHub repository. The project is now in a clean, secure, maintainable, and publication-ready state.
